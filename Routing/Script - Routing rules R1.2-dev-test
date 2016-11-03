@@ -1,0 +1,14 @@
+UPDATE BPHADMIN.participant
+SET availability            = 'T'
+WHERE (p.externalId ='NDEADKK0'
+OR p.externalId = 'NDEANOK0'
+OR p.externalId = 'NDEASES0'
+OR p.externalId = 'NDEAGB20'
+OR p.externalId = 'SMARTI')
+AND owningbankdepartmentkey =
+  (SELECT bankdepartmentkey
+  FROM BPHADMIN.bankdepartment
+  WHERE bankkey =
+    ( SELECT bankkey FROM BPHADMIN.bank WHERE bankname = 'SCT Interbank'
+    )
+  );
