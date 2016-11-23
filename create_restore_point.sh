@@ -21,19 +21,12 @@
 # Set-up Script.
 #
 
-#GEt Git Version
-NEWEST_TAG=$(git describe --abbrev=0 --tags)
-
-SCRIPT_VERSION=$(grep "^version=" myscript | awk -F= '{print $2}')
-
-if [ x$NEWEST_TAG != x$SCRIPT_VERSION ]; then
-    git tag -a $SCRIPT_VERSION -m "version $SCRIPT_VERSION"
-fi
 
 RESTORE_NAME=$1_`date +%d%b%Y`
 create="create restore point $RESTORE_NAME GUARANTEE FLASHBACK DATABASE;"
 switchLog="alter system switch logfile;"
 stby=$(dgmgrl / "show configuration"| grep  Physical | sed 's/ - Physical standby database//g' | sed 's/ //g')
+prim=$(dgmgrl / "show configuration"| grep  Primary | sed 's/ - Primary database//g' | sed 's/ //g')
 
 ###################################################################
 #Get database name                                                #
@@ -43,7 +36,7 @@ get_name () {
     set heading off
     set feedback off
     set pages 0
-    select ora_database_name from dual; 
+    select SYS_CONTEXT('userenv','db_unique_name') from dual;
 !
 }
 
@@ -123,12 +116,12 @@ pwd=$2
 
 # Check input
 if [ -z $argument ] ; then
-echo $0: usage: create_restore_point.sh name Password	
+echo $0: 'usage: create_restore_point.sh name(of restore point) Password(for sys)'	
 exit 1
 fi
 
-echo "Databasename  ${dbname} Standby ${stby}"
-echo "pwd: ${pwd}"
+
+echo "** Script to create restore point ***"
 echo "** Checking the Data Guard Broker status ...."
 dgmgrl <<-! | grep SUCCESS
     connect /
@@ -136,15 +129,16 @@ dgmgrl <<-! | grep SUCCESS
 !
 
 # Check if dataguard is configured
-  if [[ $? -ne 0  && $role = "PRIMARY" ]] ; then
+  if [[ $? -ne 0  ]] ; then
    echo -e  '\n The Data Guard not configured or this is the primary \n'
 
-# Run create restore point.
+# Run create restore point on ${dbname}
 	run_rpointP ${dbname} ${pwd}
 else
 	echo -e  '\n The Data Guard configured \n'
+	echo "Creating restore point on Primary ${prim} and Standby ${stby}"
 	#Restore point on primary
-	run_rpointP ${dbname} ${pwd} 
+	run_rpointP ${prim} ${pwd} 
 	set_state_off 
 	#Restore point on stby
 	run_rpointS ${stby} ${pwd} 
